@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Garimpo",
+  "short_name": "Garimpo",
+  "version": "0.1.0",
+  "description": "Clone páginas para um ZIP offline, baixe assets (imagens, SVGs, vídeos, Lottie) e exporte cores, fontes e tokens para Tailwind, shadcn e estudio.json.",
+  "permissions": ["activeTab", "scripting", "sidePanel", "storage", "downloads"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "src/fundo/servico.js" },
+  "side_panel": { "default_path": "src/painel/painel.html" },
+  "action": {
+    "default_title": "Abrir o Garimpo",
+    "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" }
+  },
+  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
+  "minimum_chrome_version": "116"
+}

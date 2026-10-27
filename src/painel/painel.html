@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Garimpo</title>
+  <link rel="stylesheet" href="painel.css">
+  <script src="../../lib/jszip.min.js"></script>
+  <script type="module" src="painel.js"></script>
+</head>
+<body>
+  <header class="topo">
+    <img class="topo-icone" id="pg-icone" alt="">
+    <div class="topo-texto">
+      <strong id="pg-host">—</strong>
+      <span id="pg-titulo">Abra uma página para começar</span>
+    </div>
+    <button class="icone-btn" id="recarregar" title="Analisar de novo" aria-label="Analisar de novo">
+      <svg viewBox="0 0 16 16" width="16" height="16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </header>
+
+  <nav class="abas" role="tablist">
+    <button role="tab" data-aba="estilos" aria-selected="true">Estilos</button>
+    <button role="tab" data-aba="assets">Assets</button>
+    <button role="tab" data-aba="clonar">Clonar</button>
+    <button role="tab" data-aba="inspetor">Inspetor</button>
+  </nav>
+
+  <main>
+    <div class="aviso" id="aviso" hidden></div>
+
+    <!-- ESTILOS -->
+    <section class="painel" data-painel="estilos">
+      <div class="carregando" data-carregando>Lendo cores e fontes…</div>
+      <div data-conteudo hidden>
+        <div class="bloco">
+          <div class="bloco-cab">
+            <h2>Paleta</h2>
+            <div class="segmentos" id="formato-cor" role="group" aria-label="Formato ao copiar">
+              <button data-fmt="hex" aria-pressed="true">HEX</button>
+              <button data-fmt="rgb">RGB</button>
+              <button data-fmt="oklch">OKLCH</button>
+            </div>
+          </div>
+          <div class="paleta" id="paleta"></div>
+          <details class="variaveis" id="variaveis-box" hidden>
+            <summary>Variáveis CSS de cor <span id="variaveis-n"></span></summary>
+            <div id="variaveis"></div>
+          </details>
+        </div>
+
+        <div class="bloco">
+          <h2>Tipografia</h2>
+          <div id="fontes"></div>
+        </div>
+
+        <div class="bloco">
+          <h2>Medidas</h2>
+          <div class="medidas">
+            <div><h3>Tamanhos de texto</h3><div class="chips" id="tamanhos"></div></div>
+            <div><h3>Raios</h3><div class="chips" id="raios"></div></div>
+            <div><h3>Espaçamentos</h3><div class="chips" id="espacos"></div></div>
+            <div><h3>Sombras</h3><div class="sombras" id="sombras"></div></div>
+          </div>
+        </div>
+
+        <div class="bloco">
+          <h2>Design system</h2>
+          <p class="nota">Papéis escolhidos automaticamente. Ajuste antes de exportar.</p>
+          <div class="papeis" id="papeis"></div>
+          <div class="escalas" id="escalas"></div>
+          <div class="segmentos largo" id="formato-export" role="group" aria-label="Formato de exportação"></div>
+          <pre class="codigo" id="codigo-export"></pre>
+          <div class="acoes">
+            <button class="btn" id="copiar-export">Copiar</button>
+            <button class="btn secundario" id="baixar-export">Baixar arquivo</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ASSETS -->
+    <section class="painel" data-painel="assets" hidden>
+      <div class="carregando" data-carregando>Procurando imagens, SVGs, vídeos e Lotties…</div>
+      <div data-conteudo hidden>
+        <div class="filtros" id="filtros"></div>
+        <div class="grade" id="grade"></div>
+        <div class="rodape-fixo">
+          <label class="check"><input type="checkbox" id="sel-todos"> Todos</label>
+          <span id="sel-n">0 selecionados</span>
+          <button class="btn" id="baixar-sel" disabled>Baixar ZIP</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLONAR -->
+    <section class="painel" data-painel="clonar" hidden>
+      <div class="bloco">
+        <h2>Clonar página</h2>
+        <p class="nota">Salva a página como está renderizada agora (HTML do DOM atual) com CSS, fontes, imagens e mídia num ZIP que abre offline.</p>
+        <label class="check"><input type="checkbox" id="op-midia" checked> Incluir vídeos e áudio (até 25 MB cada)</label>
+        <label class="check"><input type="checkbox" id="op-scripts"> Manter scripts <small>(costumam quebrar fora do site)</small></label>
+        <p class="nota">Antes de clonar, role a página até o fim para carregar imagens lazy.</p>
+        <button class="btn grande" id="clonar">Clonar página</button>
+        <div class="progresso" id="clone-progresso" hidden>
+          <div class="barra"><span id="clone-barra"></span></div>
+          <div class="progresso-texto" id="clone-texto"></div>
+        </div>
+        <div class="resultado" id="clone-resultado" hidden></div>
+      </div>
+    </section>
+
+    <!-- INSPETOR -->
+    <section class="painel" data-painel="inspetor" hidden>
+      <div class="bloco">
+        <button class="btn grande" id="inspecionar">Escolher elemento na página</button>
+        <p class="nota" id="inspetor-dica">Passe o mouse sobre a página e clique num elemento. <kbd>Esc</kbd> cancela.</p>
+      </div>
+      <div id="elemento" hidden>
+        <div class="elemento-cab">
+          <code id="el-nome"></code>
+          <span id="el-tamanho"></span>
+        </div>
+        <div class="acoes envolver">
+          <button class="btn secundario" id="el-pai" title="Selecionar o elemento pai">↑ Pai</button>
+          <button class="btn secundario" id="el-filho" title="Selecionar o primeiro filho">↓ Filho</button>
+          <button class="btn" id="el-css">Copiar CSS</button>
+          <button class="btn" id="el-html">Copiar HTML</button>
+          <button class="btn" id="el-prompt">Prompt de IA</button>
+          <button class="btn secundario" id="el-baixar">Baixar .html</button>
+        </div>
+        <div id="el-detalhes"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
