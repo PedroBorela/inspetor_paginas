@@ -175,5 +175,29 @@ button.chip:hover { color: var(--tinta); border-color: var(--suave); }
 .estado { border: 1px solid var(--linha); border-radius: 6px; padding: 6px 8px; margin-top: 6px; font: 11px/1.5 var(--mono); }
 .estado b { color: var(--destaque); }
 
+/* régua */
+.icone-btn[aria-pressed="true"] { color: var(--destaque-tinta); background: var(--destaque); border-color: var(--destaque); }
+.faixa-regua { display: flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--destaque-suave); border-bottom: 1px solid var(--linha); position: sticky; top: 38px; z-index: 4; }
+.faixa-texto { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.faixa-texto strong { font: 600 13px var(--mono); }
+.faixa-texto span { font-size: 11px; color: var(--suave); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.faixa-regua .btn { padding: 4px 8px; font-size: 11px; }
+
+/* telas */
+.status-sim { font: 600 11px var(--mono); color: var(--suave); }
+.status-sim.aberto { color: var(--destaque); }
+.grupo-disp { margin-top: 10px; }
+.disps { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; }
+.disp { border: 1px solid var(--linha); background: var(--superficie); border-radius: 8px; padding: 7px 8px; text-align: left; display: flex; gap: 8px; align-items: center; }
+.disp:hover { border-color: var(--suave); }
+.disp[aria-pressed="true"] { border-color: var(--destaque); box-shadow: 0 0 0 1px var(--destaque); }
+.disp svg { flex: none; color: var(--suave); }
+.disp span { display: flex; flex-direction: column; min-width: 0; }
+.disp b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.disp small { font: 10.5px var(--mono); color: var(--suave); }
+.personalizado { display: flex; align-items: center; gap: 6px; color: var(--suave); }
+.personalizado input { width: 70px; font: 12px var(--mono); padding: 5px 6px; border: 1px solid var(--linha); border-radius: 6px; background: var(--superficie); color: var(--tinta); }
+h3 + .personalizado, .bloco > h3 { margin-top: 14px; }
+
 .toast { position: fixed; left: 50%; bottom: 64px; transform: translateX(-50%); background: var(--tinta); color: var(--fundo); padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 550; opacity: 0; pointer-events: none; }
 .toast.visivel { opacity: 1; }

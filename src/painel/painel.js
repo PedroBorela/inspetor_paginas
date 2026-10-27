@@ -1,6 +1,8 @@
 import { fmtRgb, hexParaOklchCss, escala } from '../lib/cor.js';
 import { derivarPapeis, escalas, FORMATOS } from '../lib/tokens.js';
 import { Clonador } from '../lib/clone.js';
+import { GRUPOS, porId, personalizado } from '../lib/dispositivos.js';
+import { abrirSimulador, fecharSimulador, simuladorAberto } from '../lib/simulacao.js';
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => [...document.querySelectorAll(sel)];
@@ -29,6 +31,9 @@ const estado = {
   selecionados: new Set(),
   elemento: null,
   carregado: { estilos: false, assets: false },
+  sim: null,      // { id, w, h, girado } enquanto o simulador está aberto
+  regua: false,
+  medida: null,
 };
 
 // ---------- utilidades ----------
@@ -127,6 +132,8 @@ async function sincronizarAba(forcar = false) {
   estado.carregado = { estilos: false, assets: false };
   estado.selecionados.clear();
   $('#elemento').hidden = true;
+  estado.sim = null;
+  definirRegua(false);
 
   let host = '—';
   try { host = new URL(aba.url).host || aba.url; } catch { /* url vazia */ }
@@ -144,6 +151,13 @@ async function sincronizarAba(forcar = false) {
     return;
   }
   avisar('');
+  // Painel reaberto com simulador/régua já ativos na aba.
+  if (await simuladorAberto(aba.id)) estado.sim = { id: null };
+  renderTelas();
+  try {
+    const [r] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, func: () => !!window.__garimpoRegua?.ativa() });
+    definirRegua(!!r?.result);
+  } catch { /* sem acesso */ }
   carregarAba(estado.aba);
 }
 
@@ -648,12 +662,110 @@ function inspetorParou() {
   $('#inspecionar').classList.remove('secundario');
 }
 
+// ---------- telas (simulador) ----------
+
+const ICONES_DISP = {
+  Celulares: '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="4" y="1.5" width="8" height="13" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 12.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  Tablets: '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="2.5" y="1.5" width="11" height="13" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M7 12.5h2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+  Computadores: '<svg viewBox="0 0 16 16" width="16" height="16"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 14h6M8 11v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>',
+};
+
+function renderTelas() {
+  const aberto = !!estado.sim;
+  const status = $('#sim-status');
+  status.textContent = aberto ? (estado.sim.w ? `aberto · ${estado.sim.w}×${estado.sim.h}` : 'aberto') : 'fechado';
+  status.classList.toggle('aberto', aberto);
+  $('#sim-girar').disabled = !aberto;
+  $('#sim-fechar').disabled = !aberto;
+  $('#dispositivos').replaceChildren(...GRUPOS.map(g => el('div', { class: 'grupo-disp' },
+    el('h3', {}, g.nome),
+    el('div', { class: 'disps' }, ...g.itens.map(d => {
+      const b = el('button', { class: 'disp', 'aria-pressed': String(estado.sim?.id === d.id), title: `${d.nome} · ${d.w}×${d.h} @${d.dpr}x`, onclick: () => simular(d) });
+      b.innerHTML = ICONES_DISP[g.nome];
+      b.append(el('span', {}, el('b', {}, d.nome), el('small', {}, `${d.w}×${d.h}`)));
+      return b;
+    })))));
+}
+
+async function simular(disp) {
+  if (!estado.tabId || !$('#aviso').hidden) return;
+  try {
+    if (estado.sim) {
+      await chrome.runtime.sendMessage({ tipo: 'garimpo:sim-dispositivo', tabId: estado.tabId, id: disp.id, w: disp.w, h: disp.h }).catch(() => {});
+    } else {
+      if (estado.regua) await alternarRegua();
+      await abrirSimulador(estado.tabId, estado.url, disp);
+      estado.sim = { id: disp.id, w: disp.w, h: disp.h };
+    }
+    renderTelas();
+  } catch (e) {
+    console.error(e);
+    toast(`Não consegui abrir o simulador: ${e.message}`);
+  }
+}
+
+// ---------- régua ----------
+
+function definirRegua(ligada) {
+  estado.regua = ligada;
+  $('#regua').setAttribute('aria-pressed', String(ligada));
+  $('#faixa-regua').hidden = !ligada;
+  if (!ligada) {
+    estado.medida = null;
+    $('#regua-medida').textContent = 'Régua ligada';
+    $('#regua-detalhe').textContent = 'Arraste para medir uma área ou clique num elemento';
+    $('#regua-copiar').disabled = true;
+  }
+}
+
+async function alternarRegua() {
+  if (!estado.tabId || !$('#aviso').hidden) return;
+  try {
+    if (!estado.regua && inspecionando) await alternarInspetor();
+    await chrome.scripting.executeScript({ target: { tabId: estado.tabId }, files: ['src/pagina/regua.js'] });
+    const [r] = await chrome.scripting.executeScript({ target: { tabId: estado.tabId }, func: () => window.__garimpoRegua.alternar() });
+    definirRegua(!!r?.result);
+  } catch (e) {
+    toast(`Não consegui ligar a régua: ${e.message}`);
+  }
+}
+
+function mostrarMedida(m) {
+  estado.medida = m;
+  $('#regua-medida').textContent = m.texto;
+  $('#regua-detalhe').textContent = { area: 'área', elemento: 'elemento', distancia: 'distância', guia: 'guia' }[m.tipo] + (m.detalhe ? ` · ${m.detalhe}` : '');
+  $('#regua-copiar').disabled = false;
+}
+
 // ---------- eventos ----------
 
 chrome.runtime.onMessage.addListener((msg, remetente) => {
+  // O overlay do simulador e o service worker identificam a aba no corpo da mensagem.
+  if (msg.tipo === 'garimpo:sim-estado' && msg.tabId === estado.tabId) { estado.sim = { id: msg.id, w: msg.w, h: msg.h, girado: msg.girado }; renderTelas(); return; }
+  if (msg.tipo === 'garimpo:sim-fechado' && msg.tabId === estado.tabId) { estado.sim = null; renderTelas(); return; }
   if (remetente.tab?.id !== estado.tabId) return;
   if (msg.tipo === 'garimpo:elemento') { inspetorParou(); renderElemento(msg.dados); }
   if (msg.tipo === 'garimpo:inspetor-parou') inspetorParou();
+  if (msg.tipo === 'garimpo:regua') mostrarMedida(msg.medida);
+  if (msg.tipo === 'garimpo:regua-desligada') definirRegua(false);
+});
+
+$('#regua').addEventListener('click', alternarRegua);
+$('#regua-desligar').addEventListener('click', alternarRegua);
+$('#regua-copiar').addEventListener('click', () => estado.medida && copiar(estado.medida.texto.replace(' × ', 'x'), 'Medida copiada'));
+$('#regua-guias').addEventListener('click', () => {
+  chrome.scripting.executeScript({ target: { tabId: estado.tabId }, func: () => window.__garimpoRegua?.limparGuias() }).catch(() => {});
+});
+$('#sim-aplicar').addEventListener('click', () => {
+  const w = Math.max(200, Math.min(3840, +$('#sim-w').value || 390));
+  const h = Math.max(200, Math.min(3840, +$('#sim-h').value || 844));
+  simular(personalizado(w, h));
+});
+$('#sim-girar').addEventListener('click', () => chrome.runtime.sendMessage({ tipo: 'garimpo:sim-dispositivo', tabId: estado.tabId, girar: true }).catch(() => {}));
+$('#sim-fechar').addEventListener('click', async () => {
+  await fecharSimulador(estado.tabId);
+  estado.sim = null;
+  renderTelas();
 });
 
 chrome.tabs.onActivated.addListener(() => { inspetorParou(); sincronizarAba(); });
@@ -691,4 +803,5 @@ addEventListener('pagehide', () => { if (inspecionando && estado.tabId) inspetor
 // Exposto para testes automatizados.
 window.__garimpoPainel = { estado, escala };
 
+renderTelas();
 sincronizarAba(true);
